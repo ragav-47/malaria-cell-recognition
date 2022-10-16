@@ -9,8 +9,7 @@ To develop a deep neural network for Malaria infected cell recognition and to an
 We have a directory with a number of images of infected cells and uninfected cells. Using an image generator, we augment the data into multiple images. We pass the data to the model and train the model accordingly using the required number of neurons.
 
 ## NEURAL NETWORK MODEL
-
-![Neural Networks](https://user-images.githubusercontent.com/65499285/193041366-f95ff404-8ad6-497c-be7f-dc87c2e7c3a1.svg)
+![image](https://user-images.githubusercontent.com/75235488/196051995-53c0fa2c-5ccc-4a44-b220-bad3fe73b758.png)
 
 ## DESIGN STEPS
 
