@@ -37,55 +37,70 @@ from matplotlib.image import imread
 from tensorflow.keras.preprocessing.image import ImageDataGenerator,load_img
 from tensorflow import keras
 from tensorflow.keras import layers
+from tensorflow.keras import models
 from tensorflow.keras.layers import Conv2D,MaxPool2D,AvgPool2D,Dense
 from tensorflow.keras import utils
 from tensorflow.keras.models import Sequential
 from sklearn.metrics import classification_report,confusion_matrix
 import tensorflow as tf
-for device in tf.config.list_physical_devices():
-    print(": {}".format(device.name))
-phy_dev=tf.config.list_physical_devices('GPU')
-print("Num GPUs Available: ", len(phy_dev))
-tf.config.experimental.set_memory_growth(phy_dev[0],True)
-my_data_dir = 'C:\\Users\\ragav\\Desktop\\dl\\EXP_4\\cell_images'
+# to share the GPU resources for multiple sessions
+from tensorflow.compat.v1.keras.backend import set_session
+config = tf.compat.v1.ConfigProto()
+config.gpu_options.allow_growth = True # dynamically grow the memory used on the GPU
+config.log_device_placement = True # to log device placement (on which device the operation ran)
+sess = tf.compat.v1.Session(config=config)
+set_session(sess)
+
+%matplotlib inline
+my_data_dir = '/home/ailab/hdd/dataset/cell_images'
 os.listdir(my_data_dir)
 test_path = my_data_dir+'/test/'
 train_path = my_data_dir+'/train/'
-train_image_gen = ImageDataGenerator(rotation_range=20, # rotate the image 20 degrees
-                               rescale=1./255, # Rescale the image by normalzing it.
+image_shape = (130,130,3)
+image_gen = ImageDataGenerator(rotation_range=20, # rotate the image 20 degrees
+                               width_shift_range=0.10, # Shift the pic width by a max of 5%
+                               height_shift_range=0.10, # Shift the pic height by a max of 5%
+                               rescale=1/255, # Rescale the image by normalzing it.
+                               shear_range=0.1, # Shear means cutting away part of the image (max 10%)
                                zoom_range=0.1, # Zoom in by 10% max
                                horizontal_flip=True, # Allo horizontal flipping
+                               fill_mode='nearest' # Fill in missing pixels with the nearest filled value
                               )
-test_image_gen = ImageDataGenerator(rotation_range=20, # rotate the image 20 degrees
-                               rescale=1./255, # Rescale the image by normalzing it.
-                               zoom_range=0.1, # Zoom in by 10% max
-                               horizontal_flip=True, # Allo horizontal flipping
-                              )
-train= train_image_gen.flow_from_directory(train_path,target_size=(150,150),class_mode='binary',batch_size=16)
-test=test_image_gen.flow_from_directory(test_path,class_mode = 'binary',target_size=(150,150),batch_size=16)
-model=Sequential([
-    Conv2D(32,3,activation="relu",padding="same"),
-    AvgPool2D((2,2)),
-    Conv2D(64,3,activation="relu"),
-    AvgPool2D((2,2)),
-    Conv2D(64,3,activation="relu"),
-    AvgPool2D((2,2)),
-    layers.Flatten(),
-    Dense(128,activation="relu"),
-    Dense(1,activation="sigmoid")
-])
+image_gen.flow_from_directory(train_path)
+image_gen.flow_from_directory(test_path)
+model = models.Sequential()
+model.add(layers.Input(shape=(130,130,3))) 
+model.add(layers.Conv2D(filters=32,kernel_size=(3,3),padding="same",activation='relu'))
+model.add(layers.AvgPool2D(pool_size=(2,2)))
+model.add(layers.Conv2D(filters=32,kernel_size=(3,3),padding="same",activation='relu'))
+model.add(layers.MaxPool2D(pool_size=(2,2)))
+model.add(layers.Flatten())
+model.add(layers.Dense(32,activation='relu')) 
+ 
+model.add(layers.Dense(1, activation ='sigmoid'))
+model.summary()
 model.compile(loss="binary_crossentropy",optimizer="adam",metrics="accuracy")
 
-model.fit(train,epochs=5,validation_data=test)
+batch_size = 16
+train_image_gen = image_gen.flow_from_directory(train_path,
+                                               target_size=image_shape[:2],
+                                                color_mode='rgb',
+                                               batch_size=batch_size,
+                                               class_mode='binary')
+test_image_gen = image_gen.flow_from_directory(test_path,
+                                               target_size=image_shape[:2],
+                                                color_mode='rgb',
+                                               batch_size=batch_size,
+                                               class_mode='binary',shuffle = False)
+model.fit(train_image_gen,epochs=5,validation_data=test_image_gen)
 pd.DataFrame(model.history.history).plot()
-model.evaluate(test)
-pred_probabilities = model.predict(test)
+model.evaluate(test_image_gen)
+pred_probabilities = model.predict(test_image_gen)
 predictions = pred_probabilities > 0.5
-print(classification_report(test.classes,predictions))
-confusion_matrix(test.classes,predictions)
-
+print(classification_report(test_image_gen.classes,predictions))
+confusion_matrix(test_image_gen.classes,predictions)
+model.save("cell_model.h5")
 import random
-model=models.load_model("cell_model.h5")
 list_dir=["uninfected","parasitized"]
 dir_=(random.choice(list_dir))
 para_img= imread(train_path+
@@ -104,15 +119,15 @@ plt.show()
 
 ### Training Loss, Validation Loss Vs Iteration Plot
 
-![image](https://user-images.githubusercontent.com/75235488/196051377-e0f3caf2-fd14-482d-ba8c-c119fc0474b2.png)
+![image](https://user-images.githubusercontent.com/75235488/196158807-e6de2f9d-7e9b-41a2-9831-da02c261ee45.png)
 
 ### Classification Report
 
-![image](https://user-images.githubusercontent.com/75235488/196051391-6b611227-01d0-4d89-ad42-33011a54ad97.png)
+![image](https://user-images.githubusercontent.com/75235488/196158657-bfdb247a-9ae8-4982-9df4-06335538e7b4.png)
 
 ### Confusion Matrix
 
-![image](https://user-images.githubusercontent.com/75235488/196051415-a8ba9388-50a7-4bf3-8092-1300a14d15b3.png)
+![image](https://user-images.githubusercontent.com/75235488/196158723-d5aa511c-a0be-454c-81fb-092794b74cb8.png)
 
 ### New Sample Data Prediction
 
